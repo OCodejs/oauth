@@ -1,0 +1,48 @@
+name: Import sanitized uploaded source
+
+on:
+  push:
+    branches:
+      - review/uploaded-nextjs-source
+    paths:
+      - source-import/Authentication-uploaded-source-sanitized.tar.gz
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: review/uploaded-nextjs-source
+          persist-credentials: true
+
+      - name: Extract source safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p uploaded-source
+          tar -tzf source-import/Authentication-uploaded-source-sanitized.tar.gz
+          tar -xzf source-import/Authentication-uploaded-source-sanitized.tar.gz \
+            --no-same-owner --no-same-permissions -C uploaded-source
+          rm -f uploaded-source/.env uploaded-source/.env.* uploaded-source/db/custom.db
+          rm -f uploaded-source/.zscripts/dev.pid
+          find uploaded-source -type d \( -name .git -o -name node_modules \) -prune -exec rm -rf {} +
+          find uploaded-source -type f \( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.pid' \) -delete
+          test -f uploaded-source/package.json
+          test -f uploaded-source/src/app/page.tsx
+
+      - name: Commit extracted source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uploaded-source
+          if git diff --cached --quiet; then
+            echo "No extracted source changes."
+            exit 0
+          fi
+          git commit -m "chore: import sanitized uploaded Next.js source"
+          git push origin HEAD:review/uploaded-nextjs-source
