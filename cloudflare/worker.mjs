@@ -43,9 +43,14 @@ export const OPENAPI = {
     "/api/v1": { get: { tags: ["Platform"], operationId: "apiIndex", responses: { "200": { description: "API index and route list." } } } },
     "/api/v1/modules": { get: { tags: ["Platform"], operationId: "listModules", responses: { "200": { description: "Module registry with implementation states." } } } },
     "/api/v1/providers": { get: { tags: ["Platform"], operationId: "listProviders", responses: { "200": { description: "Provider registry; not a claim of live integration." } } } },
+    "/docs": { get: { tags: ["Platform"], operationId: "getDocs", responses: { "200": { description: "Human-readable API documentation page." } } } },
     "/api/v1/openapi.json": { get: { tags: ["Platform"], operationId: "getOpenApi", responses: { "200": { description: "This OpenAPI 3.1 document." } } } },
     "/api/v1/auth/csrf": { get: { tags: ["Identity"], operationId: "getCsrf", responses: { "200": { description: "Proxied CSRF token." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
     "/api/v1/auth/register": { post: { tags: ["Identity"], operationId: "register", responses: { "201": { description: "Proxied registration response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
+    "/api/v1/auth/verify-email": { post: { tags: ["Identity"], operationId: "verifyEmail", responses: { "200": { description: "Proxied email verification response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
+    "/api/v1/auth/resend-verification": { post: { tags: ["Identity"], operationId: "resendVerification", responses: { "200": { description: "Proxied verification resend response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
+    "/api/v1/auth/request-password-reset": { post: { tags: ["Identity"], operationId: "requestPasswordReset", responses: { "200": { description: "Proxied password reset request response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
+    "/api/v1/auth/reset-password": { post: { tags: ["Identity"], operationId: "resetPassword", responses: { "200": { description: "Proxied password reset response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
     "/api/v1/auth/login": { post: { tags: ["Identity"], operationId: "login", responses: { "200": { description: "Proxied login response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
     "/api/v1/auth/logout": { post: { tags: ["Identity"], operationId: "logout", responses: { "200": { description: "Proxied logout response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } },
     "/api/v1/me": { get: { tags: ["Identity"], operationId: "getCurrentUser", responses: { "200": { description: "Proxied current-user response." }, "503": { description: "AUTH_ORIGIN is not configured." } } } }
@@ -153,7 +158,17 @@ async function handle(request, env, url, id, headers) {
 
   if (url.pathname === API || url.pathname === API + "/") {
     if (request.method !== "GET") return error("METHOD_NOT_ALLOWED", "This route supports GET only.", 405, id, headers);
-    return json({ name: "OCodeJS Central API", version: "0.1.0-preview", environment: "preview", docs: API + "/openapi.json", routes: ["/health/live", "/health/ready", API + "/modules", API + "/providers", API + "/openapi.json", ...Object.keys(METHODS)] }, 200, headers);
+    return json({ name: "OCodeJS Central API", version: "0.1.0-preview", environment: "preview", docs: "/docs", openapi: API + "/openapi.json", routes: ["/health/live", "/health/ready", "/docs", API + "/modules", API + "/providers", API + "/openapi.json", ...Object.keys(METHODS)] }, 200, headers);
+  }
+
+  if (url.pathname === "/docs") {
+    if (request.method !== "GET") return error("METHOD_NOT_ALLOWED", "This route supports GET only.", 405, id, headers);
+    const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OCodeJS Central API Preview</title><style>:root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#05070f;color:#f3f5fb}body{max-width:960px;margin:48px auto;padding:0 20px}h1{font-size:24px}p,li{line-height:1.7;color:#b9c0d0}a{color:#8bb4ff}code,pre{background:#0a0d1a;border:1px solid #303747;padding:12px;display:block;overflow:auto}a{border:1px solid #46506a;padding:10px;display:inline-block;margin:6px 8px 6px 0;text-decoration:none}</style><h1>OCodeJS Central API</h1><p>Isolated Cloudflare Workers Preview. This is not Production.</p><p><a href="/api/v1/openapi.json">OpenAPI 3.1 JSON</a><a href="/api/v1/modules">Module registry</a><a href="/api/v1/providers">Provider registry</a><a href="/health/live">Live health</a><a href="/health/ready">Readiness</a></p><h2>Identity upstream</h2><p>Identity routes proxy to the Node.js Fastify service only after AUTH_ORIGIN is configured as a valid HTTPS origin. Until then, they fail closed with HTTP 503.</p><h2>API modules</h2><pre id="modules">Loading module registry…</pre><script>fetch('/api/v1/modules').then(r=>r.json()).then(v=>document.querySelector('#modules').textContent=JSON.stringify(v,null,2)).catch(()=>document.querySelector('#modules').textContent='Unable to load registry');</script></html>`;
+    const pageHeaders = new Headers(headers);
+    pageHeaders.set("Content-Type", "text/html; charset=utf-8");
+    pageHeaders.set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'");
+    pageHeaders.set("X-Frame-Options", "DENY");
+    return new Response(html, { status: 200, headers: pageHeaders });
   }
 
   if (url.pathname === API + "/openapi.json") {
