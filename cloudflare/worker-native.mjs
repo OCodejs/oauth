@@ -89,9 +89,20 @@ function error(code, message, status, id, headers) {
   return json({ error: { code, message, requestId: id } }, status, headers);
 }
 function configured(env) {
+  let appUrl = false;
+  try {
+    const parsed = new URL(env.APP_BASE_URL);
+    appUrl = parsed.protocol === "https:" && !parsed.username && !parsed.password;
+  } catch {}
+  let emailEndpoint = false;
+  try {
+    const parsed = new URL(env.EMAIL_API_URL || "https://api.resend.com/emails");
+    emailEndpoint = parsed.origin === "https://api.resend.com" && parsed.pathname === "/emails" && !parsed.username && !parsed.password;
+  } catch {}
   return Boolean(env.DB && typeof env.CSRF_SECRET === "string" && env.CSRF_SECRET.length >= 32 &&
     typeof env.EMAIL_API_KEY === "string" && env.EMAIL_API_KEY.length > 0 &&
-    typeof env.APP_BASE_URL === "string" && env.APP_BASE_URL.startsWith("https://"));
+    typeof env.EMAIL_FROM === "string" && env.EMAIL_FROM.trim().length > 0 &&
+    appUrl && emailEndpoint);
 }
 async function handle(request, env, url, id, headers) {
   if (request.method === "OPTIONS") {
@@ -106,7 +117,7 @@ async function handle(request, env, url, id, headers) {
   if (url.pathname === "/health/ready" && request.method === "GET") {
     const ready = configured(env);
     return json({ ready, gateway: "ready", identity: env.DB && env.CSRF_SECRET ? "database_and_csrf_configured" : "not_configured",
-      email: env.EMAIL_API_KEY ? "configured" : "not_configured", environment: "preview", requestId: id }, ready ? 200 : 503, headers);
+      email: env.EMAIL_API_KEY && env.EMAIL_FROM ? "configured" : "not_configured", environment: "preview", requestId: id }, ready ? 200 : 503, headers);
   }
   if (url.pathname === "/docs" && request.method === "GET") {
     const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OCodeJS Central API Preview</title><style>:root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#05070f;color:#f3f5fb}body{max-width:960px;margin:48px auto;padding:0 20px}h1{font-size:24px}p,li{line-height:1.7;color:#b9c0d0}a{color:#8bb4ff;border:1px solid #46506a;padding:10px;display:inline-block;margin:6px 8px 6px 0;text-decoration:none}code,pre{background:#0a0d1a;border:1px solid #303747;padding:12px;display:block;overflow:auto}</style><h1>OCodeJS Central API</h1><p>Isolated Cloudflare Workers + D1 Preview. This is not Production.</p><p><a href="/api/v1/openapi.json">OpenAPI 3.1 JSON</a><a href="/api/v1/modules">Modules</a><a href="/api/v1/providers">Providers</a><a href="/health/live">Live health</a><a href="/health/ready">Readiness</a></p><h2>Identity backend</h2><p>Authentication, sessions, single-use tokens, audit events and rate limits run on the dedicated D1 Preview database. Email is sent only when the HTTPS email API secret is configured.</p><h2>Security</h2><p>CSRF double-submit HMAC, HttpOnly Secure session cookies, hashed opaque session tokens, PBKDF2-SHA256 password hashes and exact-origin CORS. No production data is connected.</p><pre id="modules">Loading module registry…</pre><script>fetch('/api/v1/modules').then(r=>r.json()).then(v=>document.querySelector('#modules').textContent=JSON.stringify(v,null,2)).catch(()=>document.querySelector('#modules').textContent='Unable to load registry');</script></html>`;

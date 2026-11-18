@@ -38,3 +38,44 @@ test("identity handler does not reveal database errors", async () => {
   assert.equal(response.status, 200);
   // CSRF issuance is stateless and must not touch D1.
 });
+
+import worker from "../cloudflare/worker-native.mjs";
+
+test("readiness stays blocked without an email sender identity", async () => {
+  const env = {
+    DB: {},
+    CSRF_SECRET: "preview-only-secret-that-is-at-least-32-characters",
+    EMAIL_API_KEY: "preview-placeholder",
+    APP_BASE_URL: "https://preview.example"
+  };
+  const response = await worker.fetch(new Request("https://preview.example/health/ready"), env);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).ready, false);
+});
+
+test("readiness rejects arbitrary HTTPS email endpoints", async () => {
+  const env = {
+    DB: {},
+    CSRF_SECRET: "preview-only-secret-that-is-at-least-32-characters",
+    EMAIL_API_KEY: "preview-placeholder",
+    EMAIL_FROM: "OCodeJS <no-reply@example.test>",
+    APP_BASE_URL: "https://preview.example",
+    EMAIL_API_URL: "https://attacker.example/collect"
+  };
+  const response = await worker.fetch(new Request("https://preview.example/health/ready"), env);
+  assert.equal(response.status, 503);
+});
+
+test("readiness accepts complete Preview-only configuration", async () => {
+  const env = {
+    DB: {},
+    CSRF_SECRET: "preview-only-secret-that-is-at-least-32-characters",
+    EMAIL_API_KEY: "preview-placeholder",
+    EMAIL_FROM: "OCodeJS <no-reply@example.test>",
+    APP_BASE_URL: "https://preview.example",
+    ALLOWED_ORIGINS: "https://preview.example"
+  };
+  const response = await worker.fetch(new Request("https://preview.example/health/ready"), env);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).ready, true);
+});

@@ -99,10 +99,13 @@ async function rateLimit(env, request, route, max, windowSeconds) {
   return Number(result?.hits || 0) <= max;
 }
 async function readJson(request) {
-  if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) throw new Error("invalid_content_type");
+  const contentType = (request.headers.get("content-type") || "").toLowerCase();
+  if (!/^application\/json(?:\s*;|$)/.test(contentType)) throw new Error("invalid_content_type");
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > 16384) throw new Error("body_too_large");
-  return JSON.parse(raw);
+  const body = JSON.parse(raw);
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("invalid_json_shape");
+  return body;
 }
 function validEmail(value) {
   return typeof value === "string" && value.trim().length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -120,21 +123,24 @@ async function issueAccountToken(env, userId, purpose) {
   return raw;
 }
 async function sendEmail(env, to, subject, text, html) {
-  if (!env.EMAIL_API_KEY) throw new Error("email_provider_not_configured");
+  if (!env.EMAIL_API_KEY || !env.EMAIL_FROM) throw new Error("email_provider_not_configured");
   const endpoint = env.EMAIL_API_URL || EMAIL_ENDPOINT;
   const url = new URL(endpoint);
-  if (url.protocol !== "https:") throw new Error("email_provider_must_use_https");
+  if (url.origin !== "https://api.resend.com" || url.pathname !== "/emails" || url.username || url.password) {
+    throw new Error("email_provider_endpoint_not_allowed");
+  }
   const response = await fetch(url, {
     method: "POST",
     headers: { authorization: "Bearer " + env.EMAIL_API_KEY, "content-type": "application/json" },
-    body: JSON.stringify({ from: env.EMAIL_FROM || "OCodeJS <onboarding@resend.dev>", to: [to], subject, text, html }),
+    body: JSON.stringify({ from: env.EMAIL_FROM, to: [to], subject, text, html }),
     signal: AbortSignal.timeout(8000)
   });
   if (!response.ok) throw new Error("email_provider_rejected_request");
 }
 function accountUrl(env, parameter, token) {
-  const base = new URL(env.APP_BASE_URL || "https://example.invalid");
-  if (base.protocol !== "https:") throw new Error("app_base_url_must_use_https");
+  if (typeof env.APP_BASE_URL !== "string" || !env.APP_BASE_URL) throw new Error("app_base_url_not_configured");
+  const base = new URL(env.APP_BASE_URL);
+  if (base.protocol !== "https:" || base.username || base.password) throw new Error("app_base_url_must_use_https");
   base.searchParams.set(parameter, token);
   return base.toString();
 }
@@ -331,6 +337,7 @@ export async function handleIdentity(request, env, url) {
   } catch (error) {
     if (error?.message === "body_too_large") return fail("payload_too_large", 413);
     if (error?.message === "invalid_content_type") return fail("invalid_content_type", 415);
+    if (error?.message === "invalid_json_shape" || error instanceof SyntaxError) return fail("invalid_json", 400);
     return fail("identity_service_unavailable", 503, "The Preview identity service could not complete the request.");
   }
 }
