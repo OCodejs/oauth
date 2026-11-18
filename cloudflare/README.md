@@ -1,73 +1,60 @@
-# Cloudflare Workers Preview — OCodeJS Central API
+# OCodeJS Central API — Cloudflare Workers Preview
 
-This repository contains two distinct runtimes:
+This branch adds a Workers-native identity backend for an isolated staging environment. It does not change Production or import any existing user data.
 
-- `server/`: the existing Node.js 22 Fastify identity service. It requires PostgreSQL and SMTP; it is not a Cloudflare Worker entrypoint.
-- `cloudflare/worker.mjs`: a Cloudflare Workers edge gateway using Node.js compatibility. It serves health, module/provider registry and OpenAPI documentation, and forwards only the explicit identity route allowlist to the Node.js service.
+## Preview resources
 
-## Preview worker
+- Gateway Worker: `ocodejs-central-api-preview`
+- Existing gateway Preview URL: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev
+- Dedicated D1 database: `ocodejs-central-api-preview`
+- D1 database ID: `c6c0e235-e1a9-4ede-9a4b-27debc9c2a9b`
+- Native Worker entrypoint: `cloudflare/worker-native.mjs`
+- Identity implementation: `cloudflare/identity.mjs`
+- D1 migration: `cloudflare/migrations/0001_identity.sql`
 
-The isolated Staging Worker name is `ocodejs-central-api-preview`.
+The existing Node.js 22/Fastify/PostgreSQL service remains in the repository as the legacy implementation. This Preview path does not connect to its database and does not import its accounts.
 
-- Staging URL: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev
-- Human-readable docs: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/docs
-- OpenAPI JSON: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/api/v1/openapi.json
-- Live health: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/health/live
-- Readiness: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/health/ready
+## Workers-native architecture
 
-The Worker is deployed in the OCodeJS Cloudflare account with its own `workers.dev` hostname; Cloudflare Version Preview URLs are also enabled. It is not attached to a production custom domain or zone route. The existing `ocodejs-server-api-staging` Worker is not modified by this project.
+- Cloudflare Worker handles the API gateway, CORS, request IDs, health checks and OpenAPI.
+- D1 stores users, sessions, single-use verification/reset tokens, audit events and rate-limit counters.
+- Web Crypto implements signed double-submit CSRF, SHA-256 token hashing and versioned PBKDF2-SHA256 password hashes.
+- Email uses an HTTPS JSON API compatible with Resend's email endpoint. No email key is committed; sending stays unavailable until a Preview-only secret is entered in Cloudflare.
+- Session tokens are opaque random values; only SHA-256 hashes are persisted. Session cookies are Secure, HttpOnly and SameSite=Lax.
+- Identity routes preserve the existing route contract: CSRF, register, verify email, resend verification, request/reset password, login, logout and current user.
 
-The Worker uses a current compatibility date and the Node.js compatibility runtime for `node:crypto`. Cloudflare Workers does not provide a complete Node.js server runtime: do not try to run Fastify's `app.listen()`, PostgreSQL's `pg.Pool`, Nodemailer SMTP sockets, or native `argon2` inside this Worker. Keep those operations in the Node.js identity service and connect it through the explicit HTTPS `AUTH_ORIGIN` upstream.
+## Password compatibility and account isolation
 
-## Environment configuration
+The legacy Node.js service uses Argon2id. This Worker Preview uses a versioned `pbkdf2-sha256` format with 600,000 iterations so it can run through Web Crypto without native Node addons. Existing Argon2id hashes are deliberately not accepted by the new verifier, and no existing account data is copied. Any future account migration needs a separately reviewed re-enrollment or dual-verifier plan; it is not part of this Preview.
 
-Set these as non-secret Worker variables in the Preview environment:
+## Required Preview-only bindings and variables
 
-- `ALLOWED_ORIGINS`: comma-separated exact frontend origins. Same-origin browser requests are allowed automatically. Do not use `*` with credentialed requests.
-- `AUTH_ORIGIN`: optional HTTPS origin of the Node.js Fastify auth service (origin only, no path, credentials, query or fragment). Until configured, identity routes fail closed with HTTP 503 and readiness returns HTTP 503.
+- D1 binding: `DB` → the dedicated database ID above.
+- Secret: `CSRF_SECRET` — random value, minimum 32 characters.
+- Secret: `EMAIL_API_KEY` — email provider API key; never commit it.
+- Variable: `EMAIL_API_URL` — optional HTTPS endpoint; defaults to `https://api.resend.com/emails`.
+- Variable: `EMAIL_FROM` — verified sender address.
+- Variable: `APP_BASE_URL` — HTTPS frontend URL that receives `?verify=` and `?reset=` links.
+- Variable: `ALLOWED_ORIGINS` — exact comma-separated browser origins.
+- Variable: `SESSION_TTL_SECONDS` — optional, defaults to 604800 and is clamped to 300–2592000.
 
-No API keys or passwords are required by the edge gateway itself. Configure database, SMTP and session secrets only in the Node.js service's secret manager, never in Git or this Worker source.
+Do not configure these on Production. Do not reuse any Production secret, sender domain or database.
 
-## Preview API routes
+## Preview deployment
 
-- `GET /health/live`
-- `GET /health/ready`
-- `GET /docs` — human-readable API docs page.
-- `GET /api/v1`
-- `GET /api/v1/modules`
-- `GET /api/v1/providers`
-- `GET /api/v1/openapi.json`
-- The identity routes in `cloudflare/worker.mjs` are forwarded only when `AUTH_ORIGIN` is valid and configured.
+The new source is uploaded as a Worker **Version Preview**, not promoted to the active Worker deployment. The stable Worker alias must remain unchanged. The Version Preview endpoint should be tested directly after upload.
 
-Provider modules, API-key management, webhooks, Web4s and social-network integrations remain explicitly unimplemented or blocked on official specifications. The registry reports these states; it does not simulate success.
+Before a Preview version can become ready:
+1. Apply `cloudflare/migrations/0001_identity.sql` only to the dedicated D1 Preview database.
+2. Bind the database as `DB` on the Preview version.
+3. Add Preview-only `CSRF_SECRET` and email provider secret through Cloudflare's secret manager.
+4. Set the exact `APP_BASE_URL`, `EMAIL_FROM` and `ALLOWED_ORIGINS`.
+5. Verify health, CSRF, registration, email verification, login, `/me`, logout, reset, rate limits and CORS using synthetic test accounts.
 
-## Deploying a separate Staging Worker
+If email is not configured, registration persists an unverified staging account and returns a safe 503; the resend route remains non-enumerating. Do not use real customer addresses.
 
-The deployment target is a new Worker named `ocodejs-central-api-preview` in the OCodeJS account. Upload the module with metadata:
+## Cost and safety
 
-```json
-{
-  "main_module": "worker.mjs",
-  "compatibility_date": "2026-11-18",
-  "compatibility_flags": ["nodejs_compat"],
-  "bindings": [],
-  "observability": {
-    "enabled": true,
-    "logs": { "enabled": true, "invocation_logs": true, "persist": true },
-    "traces": { "enabled": false }
-  }
-}
-```
+D1 is available on Workers Free and Paid plans. Free usage has daily row read/write limits; Paid usage can incur charges above included quotas. This project creates one isolated database and does not upgrade the account plan. See https://developers.cloudflare.com/d1/platform/pricing/ and https://developers.cloudflare.com/d1/platform/limits/.
 
-Enable the `workers.dev` hostname and Preview URLs only for this dedicated Staging Worker. Do not attach custom domains, zone routes, queues, schedules, or production resources.
-
-After upload, verify:
-1. `GET /docs` serves the human-readable API docs and links to OpenAPI JSON.
-2. `GET /health/live` returns HTTP 200 and identifies `environment: preview`.
-3. `GET /health/ready` returns HTTP 503 until the Node.js upstream is configured.
-4. `GET /api/v1/openapi.json` returns OpenAPI 3.1.
-5. `GET /api/v1/modules` clearly identifies planned and blocked modules.
-6. Browser CORS rejects origins not explicitly allowlisted.
-7. Every identity proxy route returns 503 until a verified HTTPS `AUTH_ORIGIN` is configured.
-
-This Staging Worker is isolated by name and hostname. It is not the Production API and must not be treated as a cutover.
+No Production custom domain, DNS record, zone route, account migration, real user data import, SMTP configuration, paid-plan change or automatic promotion is included.
