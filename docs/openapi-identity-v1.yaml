@@ -1,0 +1,333 @@
+openapi: 3.1.0
+info:
+  title: OCodeJS Identity API
+  version: 1.0.0
+  description: >-
+    Verified OpenAPI contract for the currently implemented identity routes in
+    the OCodeJS Fastify gateway. This is not the future complete OCodeJS
+    platform API. Planned modules must not be represented as live endpoints.
+servers:
+  - url: /
+    description: Same-origin deployment. Set the public server URL in the deployment-specific API portal.
+tags:
+  - name: System
+  - name: Authentication
+  - name: Account
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Health check
+      responses:
+        '200':
+          description: Service process is responding.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status: { type: string, const: ok }
+                  service: { type: string, const: ocodejs-auth-gateway }
+  /api/v1/auth/csrf:
+    get:
+      tags: [Authentication]
+      operationId: getCsrfToken
+      summary: Issue a CSRF token for browser requests
+      responses:
+        '200':
+          description: CSRF token and cookie issued.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [csrfToken]
+                properties:
+                  csrfToken: { type: string }
+  /api/v1/auth/register:
+    post:
+      tags: [Authentication]
+      operationId: registerAccount
+      summary: Register an unverified account
+      description: Requires the CSRF cookie and matching X-CSRF-Token header. No session is created.
+      security: [{ csrfCookie: [], csrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '201':
+          description: Account created; email verification required.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, verification_required, message]
+                properties:
+                  ok: { type: boolean, const: true }
+                  verification_required: { type: boolean, const: true }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/InvalidInput' }
+        '403': { $ref: '#/components/responses/CsrfFailed' }
+        '409':
+          description: Account already exists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: Registration or email delivery temporarily unavailable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Authentication]
+      operationId: verifyEmail
+      summary: Consume a single-use email verification token
+      security: [{ csrfCookie: [], csrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, minLength: 20, maxLength: 256 }
+      responses:
+        '200':
+          description: Email verified.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, message]
+                properties:
+                  ok: { type: boolean, const: true }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/InvalidToken' }
+        '403': { $ref: '#/components/responses/CsrfFailed' }
+  /api/v1/auth/resend-verification:
+    post:
+      tags: [Authentication]
+      operationId: resendVerification
+      summary: Request another verification email
+      description: Response does not disclose whether an account exists.
+      security: [{ csrfCookie: [], csrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '200':
+          description: Non-enumerating response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkMessage' }
+        '400': { $ref: '#/components/responses/InvalidInput' }
+        '403': { $ref: '#/components/responses/CsrfFailed' }
+  /api/v1/auth/request-password-reset:
+    post:
+      tags: [Authentication]
+      operationId: requestPasswordReset
+      summary: Request a password reset email
+      description: Response does not disclose whether an account exists.
+      security: [{ csrfCookie: [], csrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '200':
+          description: Non-enumerating response.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkMessage' }
+        '400': { $ref: '#/components/responses/InvalidInput' }
+        '403': { $ref: '#/components/responses/CsrfFailed' }
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Authentication]
+      operationId: resetPassword
+      summary: Consume a password-reset token and revoke existing sessions
+      security: [{ csrfCookie: [], csrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string, minLength: 20, maxLength: 256 }
+                password: { type: string, minLength: 12, maxLength: 128 }
+      responses:
+        '200':
+          description: Password updated; user must log in again.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkMessage' }
+        '400': { $ref: '#/components/responses/InvalidInput' }
+        '403': { $ref: '#/components/responses/CsrfFailed' }
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      summary: Create a browser session
+      description: Requires verified email and a valid CSRF token.
+      security: [{ csrfCookie: [], csrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '200':
+          description: Session cookie issued.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/InvalidInput' }
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Email not verified or CSRF validation failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v1/me:
+    get:
+      tags: [Account]
+      operationId: getCurrentUser
+      summary: Get the current authenticated user
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Current user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      summary: Revoke the current browser session
+      security: [{ csrfCookie: [], csrfHeader: [] }]
+      responses:
+        '200':
+          description: Session revoked and cookie cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '403': { $ref: '#/components/responses/CsrfFailed' }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: ocodejs_session
+    csrfCookie:
+      type: apiKey
+      in: cookie
+      name: ocodejs_csrf
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  schemas:
+    Credentials:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 12, maxLength: 128 }
+    User:
+      type: object
+      required: [id, email, email_verified]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        email_verified: { type: boolean }
+    OkMessage:
+      type: object
+      required: [ok, message]
+      properties:
+        ok: { type: boolean, const: true }
+        message: { type: string }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
+        details: { type: object }
+    InvalidToken:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, const: invalid_or_expired_token }
+    CsrfFailed:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string, const: csrf_failed }
+        message: { type: string }
+  responses:
+    InvalidInput:
+      description: Request body validation failed.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    CsrfFailed:
+      description: CSRF cookie/header mismatch or invalid token.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/CsrfFailed' }
+    InvalidToken:
+      description: Token is invalid, expired or already consumed.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/InvalidToken' }
+    Unauthenticated:
+      description: No valid browser session.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error: { type: string, const: unauthenticated }
