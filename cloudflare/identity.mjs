@@ -99,10 +99,10 @@ async function rateLimit(env, request, route, max, windowSeconds) {
   return Number(result?.hits || 0) <= max;
 }
 async function readJson(request) {
-  const length = Number(request.headers.get("content-length") || 0);
-  if (length > 16384) throw new Error("body_too_large");
   if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) throw new Error("invalid_content_type");
-  return await request.json();
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > 16384) throw new Error("body_too_large");
+  return JSON.parse(raw);
 }
 function validEmail(value) {
   return typeof value === "string" && value.trim().length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -205,8 +205,11 @@ export async function handleIdentity(request, env, url) {
       try {
         await env.DB.prepare("INSERT INTO users(id,email,email_normalized,password_hash,created_at,updated_at) VALUES(?,?,?,?,?,?)")
           .bind(userId, email, normalized, passwordHash, now, now).run();
-      } catch {
-        return fail("account_exists", 409, "An account with this email already exists.");
+      } catch (error) {
+        if (String(error?.message || "").includes("UNIQUE constraint failed")) {
+          return fail("account_exists", 409, "An account with this email already exists.");
+        }
+        throw error;
       }
       const token = await issueAccountToken(env, userId, "email_verification");
       try {
