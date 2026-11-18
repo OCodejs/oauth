@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "description": "Central identity and authentication gateway for the Velclaw ecosystem",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch server/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server/index.js",
     "db:migrate": "tsx server/migrate.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts && npm run test:worker",
+    "test:worker": "node --test tests/worker.test.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
