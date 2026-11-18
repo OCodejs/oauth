@@ -48,7 +48,7 @@ test("OpenAPI document is served and versioned", async () => {
 
 test("unknown routes and methods are rejected", async () => {
   assert.equal((await worker.fetch(request("/api/v1/unknown"), {})).status, 404);
-  assert.equal((await worker.fetch(request("/api/v1/modules", { method: "POST" }), {})).status, 404);
+  assert.equal((await worker.fetch(request("/api/v1/modules", { method: "POST" }), {})).status, 405);
 });
 
 test("browser origins are denied unless explicitly allowlisted", async () => {
@@ -70,4 +70,10 @@ test("identity methods are restricted and upstream is never guessed", async () =
 test("request IDs are returned and logged without request bodies", async () => {
   const response = await worker.fetch(request("/health/live", { headers: { "X-Request-Id": "test-request-0001" } }), {});
   assert.equal(response.headers.get("X-Request-Id"), "test-request-0001");
+});
+
+test("same-origin browser requests are accepted without a CORS allowlist entry", async () => {
+  const response = await worker.fetch(request("/api/v1/modules", { headers: { Origin: "https://preview.example" } }), {});
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Access-Control-Allow-Origin"), "https://preview.example");
 });
