@@ -8,12 +8,14 @@ Central identity and authentication gateway for the Velclaw ecosystem (Velclaw, 
 
 - [Central API architecture and rollout plan](docs/platform-api-architecture.md) — target platform boundaries, module status, security and phased cutover.
 - [Identity API OpenAPI 3.1 contract](docs/openapi-identity-v1.yaml) — verified contract for endpoints implemented in this repository only.
+- [Cloudflare Workers Preview](cloudflare/README.md) — edge gateway architecture, environment variables and Preview verification.
 
 **Important:** the OpenAPI file documents the current identity routes. It does not claim that planned API-key management, Web4s, social-network, webhook or developer-console endpoints are live. Provider adapters require official provider specifications and sandbox verification.
 
 ## Architecture
 
-- Fastify API and PostgreSQL persistence.
+- Fastify API and PostgreSQL persistence for the Node.js identity service.
+- Cloudflare Workers edge gateway in `cloudflare/worker.mjs`; it forwards a strict identity-route allowlist to the Node.js service when `AUTH_ORIGIN` is configured.
 - Passwords are hashed with Argon2id.
 - Browser sessions use opaque random tokens in HttpOnly cookies; only SHA-256 token hashes are stored.
 - Email verification and password-reset tokens are random, single-use, expire after 30 minutes, and are stored as hashes. Issuance is serialized per account; verification and password reset apply token consumption and account changes transactionally.
