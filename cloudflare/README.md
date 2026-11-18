@@ -7,15 +7,15 @@ This repository contains two distinct runtimes:
 
 ## Preview worker
 
-The isolated Preview Worker name is `ocodejs-central-api-preview`.
+The isolated Staging Worker name is `ocodejs-central-api-preview`.
 
-- Preview base URL: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev
+- Staging URL: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev
 - Human-readable docs: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/docs
 - OpenAPI JSON: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/api/v1/openapi.json
 - Live health: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/health/live
 - Readiness: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/health/ready
 
-The Worker is deployed in the OCodeJS Cloudflare account with its own `workers.dev` hostname and Preview URLs enabled. It is not attached to a production custom domain or zone route. The existing `ocodejs-server-api-staging` Worker is not modified by this project.
+The Worker is deployed in the OCodeJS Cloudflare account with its own `workers.dev` hostname; Cloudflare Version Preview URLs are also enabled. It is not attached to a production custom domain or zone route. The existing `ocodejs-server-api-staging` Worker is not modified by this project.
 
 The Worker uses a current compatibility date and the Node.js compatibility runtime for `node:crypto`. Cloudflare Workers does not provide a complete Node.js server runtime: do not try to run Fastify's `app.listen()`, PostgreSQL's `pg.Pool`, Nodemailer SMTP sockets, or native `argon2` inside this Worker. Keep those operations in the Node.js identity service and connect it through the explicit HTTPS `AUTH_ORIGIN` upstream.
 
@@ -41,7 +41,7 @@ No API keys or passwords are required by the edge gateway itself. Configure data
 
 Provider modules, API-key management, webhooks, Web4s and social-network integrations remain explicitly unimplemented or blocked on official specifications. The registry reports these states; it does not simulate success.
 
-## Deploying a separate Preview Worker
+## Deploying a separate Staging Worker
 
 The deployment target is a new Worker named `ocodejs-central-api-preview` in the OCodeJS account. Upload the module with metadata:
 
@@ -59,7 +59,7 @@ The deployment target is a new Worker named `ocodejs-central-api-preview` in the
 }
 ```
 
-Enable the `workers.dev` hostname and Preview URLs only for this dedicated Preview Worker. Do not attach custom domains, zone routes, queues, schedules, or production resources.
+Enable the `workers.dev` hostname and Preview URLs only for this dedicated Staging Worker. Do not attach custom domains, zone routes, queues, schedules, or production resources.
 
 After upload, verify:
 1. `GET /docs` serves the human-readable API docs and links to OpenAPI JSON.
@@ -70,4 +70,4 @@ After upload, verify:
 6. Browser CORS rejects origins not explicitly allowlisted.
 7. Every identity proxy route returns 503 until a verified HTTPS `AUTH_ORIGIN` is configured.
 
-This Preview Worker is isolated by name and hostname. It is not the Production API and must not be treated as a cutover.
+This Staging Worker is isolated by name and hostname. It is not the Production API and must not be treated as a cutover.
