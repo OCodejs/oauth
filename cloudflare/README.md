@@ -24,6 +24,7 @@ No API keys or passwords are required by the edge gateway itself. Configure data
 
 - `GET /health/live`
 - `GET /health/ready`
+- `GET /docs` — human-readable API docs page.
 - `GET /api/v1`
 - `GET /api/v1/modules`
 - `GET /api/v1/providers`
@@ -53,11 +54,12 @@ The deployment target is a new Worker named `ocodejs-central-api-preview` in the
 Enable the `workers.dev` hostname and Preview URLs only for this dedicated Preview Worker. Do not attach custom domains, zone routes, queues, schedules, or production resources.
 
 After upload, verify:
-1. `GET /health/live` returns HTTP 200 and identifies `environment: preview`.
-2. `GET /health/ready` returns HTTP 503 until the Node.js upstream is configured.
-3. `GET /api/v1/openapi.json` returns OpenAPI 3.1.
-4. `GET /api/v1/modules` clearly identifies planned and blocked modules.
-5. Browser CORS rejects origins not explicitly allowlisted.
-6. Every identity proxy route returns 503 until a verified HTTPS `AUTH_ORIGIN` is configured.
+1. `GET /docs` serves the human-readable API docs and links to OpenAPI JSON.
+2. `GET /health/live` returns HTTP 200 and identifies `environment: preview`.
+3. `GET /health/ready` returns HTTP 503 until the Node.js upstream is configured.
+4. `GET /api/v1/openapi.json` returns OpenAPI 3.1.
+5. `GET /api/v1/modules` clearly identifies planned and blocked modules.
+6. Browser CORS rejects origins not explicitly allowlisted.
+7. Every identity proxy route returns 503 until a verified HTTPS `AUTH_ORIGIN` is configured.
 
 This Preview Worker is isolated by name and hostname. It is not the Production API and must not be treated as a cutover.
