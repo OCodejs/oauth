@@ -77,3 +77,11 @@ test("same-origin browser requests are accepted without a CORS allowlist entry",
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Access-Control-Allow-Origin"), "https://preview.example");
 });
+
+test("human-readable API docs page is served with a restrictive CSP", async () => {
+  const response = await worker.fetch(request("/docs"), {});
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /text\/html/);
+  assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+  assert.match(await response.text(), /OpenAPI 3.1 JSON/);
+});
