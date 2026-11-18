@@ -28,7 +28,7 @@ const PROVIDERS = [
   { id: "google", name: "Google", state: "not_configured", auth: "not_configured", sandbox: "not_verified", writeOperationsEnabled: false }
 ];
 
-export const OPENAPI = {
+const OPENAPI = {
   openapi: "3.1.0",
   info: {
     title: "OCodeJS Central API",
