@@ -100,7 +100,7 @@ async function rateLimit(env, request, route, max, windowSeconds) {
 }
 async function readJson(request) {
   const contentType = (request.headers.get("content-type") || "").toLowerCase();
-  if (!/^application\\/json(?:\\s*;|$)/.test(contentType)) throw new Error("invalid_content_type");
+  if (!/^application\/json(?:\s*;|$)/.test(contentType)) throw new Error("invalid_content_type");
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > 16384) throw new Error("body_too_large");
   const body = JSON.parse(raw);
@@ -337,6 +337,7 @@ export async function handleIdentity(request, env, url) {
   } catch (error) {
     if (error?.message === "body_too_large") return fail("payload_too_large", 413);
     if (error?.message === "invalid_content_type") return fail("invalid_content_type", 415);
+    if (error?.message === "invalid_json_shape" || error instanceof SyntaxError) return fail("invalid_json", 400);
     return fail("identity_service_unavailable", 503, "The Preview identity service could not complete the request.");
   }
 }
