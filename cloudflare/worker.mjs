@@ -70,7 +70,8 @@ function baseHeaders(request, env, id) {
     "Vary": "Origin"
   });
   const origin = request.headers.get("Origin");
-  if (origin && allowedOrigins(env).includes(origin)) {
+  const sameOrigin = new URL(request.url).origin;
+  if (origin && (origin === sameOrigin || allowedOrigins(env).includes(origin))) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Access-Control-Allow-Credentials", "true");
     headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -155,13 +156,18 @@ async function handle(request, env, url, id, headers) {
     return json({ name: "OCodeJS Central API", version: "0.1.0-preview", environment: "preview", docs: API + "/openapi.json", routes: ["/health/live", "/health/ready", API + "/modules", API + "/providers", API + "/openapi.json", ...Object.keys(METHODS)] }, 200, headers);
   }
 
-  if (url.pathname === API + "/openapi.json" && request.method === "GET") return json(OPENAPI, 200, headers);
+  if (url.pathname === API + "/openapi.json") {
+    if (request.method !== "GET") return error("METHOD_NOT_ALLOWED", "This route supports GET only.", 405, id, headers);
+    return json(OPENAPI, 200, headers);
+  }
 
-  if (url.pathname === API + "/modules" && request.method === "GET") {
+  if (url.pathname === API + "/modules") {
+    if (request.method !== "GET") return error("METHOD_NOT_ALLOWED", "This route supports GET only.", 405, id, headers);
     return json({ modules: MODULES.map((item) => ({ ...item, endpoints: [...item.endpoints], state: item.id === "identity" && !getAuthOrigin(env) ? "awaiting_nodejs_upstream" : item.state })), count: MODULES.length, requestId: id }, 200, headers);
   }
 
-  if (url.pathname === API + "/providers" && request.method === "GET") {
+  if (url.pathname === API + "/providers") {
+    if (request.method !== "GET") return error("METHOD_NOT_ALLOWED", "This route supports GET only.", 405, id, headers);
     return json({ providers: PROVIDERS, count: PROVIDERS.length, requestId: id }, 200, headers);
   }
 
