@@ -7,7 +7,15 @@ This repository contains two distinct runtimes:
 
 ## Preview worker
 
-The isolated Preview Worker name is `ocodejs-central-api-preview`. It must not be attached to a production custom domain or route. The existing `ocodejs-server-api-staging` Worker is not modified by this project.
+The isolated Preview Worker name is `ocodejs-central-api-preview`.
+
+- Preview base URL: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev
+- Human-readable docs: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/docs
+- OpenAPI JSON: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/api/v1/openapi.json
+- Live health: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/health/live
+- Readiness: https://ocodejs-central-api-preview.ocodejs-df1.workers.dev/health/ready
+
+The Worker is deployed in the OCodeJS Cloudflare account with its own `workers.dev` hostname and Preview URLs enabled. It is not attached to a production custom domain or zone route. The existing `ocodejs-server-api-staging` Worker is not modified by this project.
 
 The Worker uses a current compatibility date and the Node.js compatibility runtime for `node:crypto`. Cloudflare Workers does not provide a complete Node.js server runtime: do not try to run Fastify's `app.listen()`, PostgreSQL's `pg.Pool`, Nodemailer SMTP sockets, or native `argon2` inside this Worker. Keep those operations in the Node.js identity service and connect it through the explicit HTTPS `AUTH_ORIGIN` upstream.
 
