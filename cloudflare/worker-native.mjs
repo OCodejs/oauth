@@ -128,13 +128,14 @@ async function handle(request, env, url, id, headers) {
       return error("METHOD_NOT_ALLOWED", "The requested identity route does not allow this method.", 405, id, headers);
     }
     const response = await handleIdentity(request, env, url);
-    const output = new Headers(headers);
-    for (const value of response.headers.getSetCookie?.() || []) output.append("set-cookie", value);
-    for (const name of ["content-type", "retry-after"]) {
-      const value = response.headers.get(name);
-      if (value) output.set(name, value);
+    const output = new Response(response.body, { status: response.status, headers: response.headers });
+    for (const name of ["cache-control", "x-content-type-options", "referrer-policy", "x-request-id", "vary",
+      "access-control-allow-origin", "access-control-allow-credentials", "access-control-allow-methods",
+      "access-control-allow-headers", "access-control-max-age"]) {
+      const value = headers.get(name);
+      if (value) output.headers.set(name, value);
     }
-    return new Response(response.body, { status: response.status, headers: output });
+    return output;
   }
   if (url.pathname.startsWith(API + "/auth/") || url.pathname === API + "/me") return error("ROUTE_NOT_ALLOWED", "This identity route is not in the gateway allowlist.", 404, id, headers);
   return error("NOT_FOUND", "The requested API route does not exist.", 404, id, headers);
