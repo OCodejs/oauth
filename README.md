@@ -4,6 +4,13 @@ Central identity and authentication gateway for the Velclaw ecosystem (Velclaw, 
 
 > Current implementation: Phase 1–2 foundation, email/password accounts, email verification, password reset and browser session APIs. Google/GitHub federation and the OAuth 2.0 / OpenID Connect provider are later phases and are not implemented yet.
 
+## OCodeJS API documentation
+
+- [Central API architecture and rollout plan](docs/platform-api-architecture.md) — target platform boundaries, module status, security and phased cutover.
+- [Identity API OpenAPI 3.1 contract](docs/openapi-identity-v1.yaml) — verified contract for endpoints implemented in this repository only.
+
+**Important:** the OpenAPI file documents the current identity routes. It does not claim that planned API-key management, Web4s, social-network, webhook or developer-console endpoints are live. Provider adapters require official provider specifications and sandbox verification.
+
 ## Architecture
 
 - Fastify API and PostgreSQL persistence.
