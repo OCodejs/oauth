@@ -51,12 +51,12 @@ Do not configure these on Production. Do not reuse any Production secret, sender
 - Automated GitHub Actions were triggered for the draft PR, but GitHub returned failed jobs with runner ID `0` and no steps. No CI test steps executed; this is not a passing test result.
 - Direct HTTP smoke tests from the execution environment were blocked by network access. Open the URLs above in Safari to verify live HTTP responses after configuring Preview secrets.
 
-Before enabling registration with real email delivery:
+Before enabling successful public registrations with real email delivery:
 1. Enter the Preview-only `CSRF_SECRET` and `EMAIL_API_KEY` in Cloudflare Worker secrets.
 2. Set the verified `EMAIL_FROM`, HTTPS `APP_BASE_URL` and exact `ALLOWED_ORIGINS`.
 3. Verify health, CSRF, registration, email verification, login, `/me`, logout, password reset, rate limits and CORS using synthetic test accounts only.
 
-If email is not configured, registration persists an unverified staging account and returns a safe 503; the resend route remains non-enumerating. Do not use real customer addresses.
+Public registration is open to any visitor; there is no invite list or administrator approval. The endpoint enforces a per-IP rate limit and requires email verification before login. It fails closed before creating a user row unless the Preview email API key, verified sender, HTTPS app URL and allowed email endpoint are configured. If an email provider rejects a message after account creation, the account remains unverified and can use the non-enumerating resend route after the provider is restored. Do not use real customer addresses for Preview tests.
 
 ## Cost and safety
 

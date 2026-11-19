@@ -111,6 +111,17 @@ function validEmail(value) {
   return typeof value === "string" && value.trim().length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 function validPassword(value) { return typeof value === "string" && value.length >= 12 && value.length <= 128; }
+function emailDeliveryConfigured(env) {
+  if (typeof env.EMAIL_API_KEY !== "string" || !env.EMAIL_API_KEY.trim() ||
+      typeof env.EMAIL_FROM !== "string" || !env.EMAIL_FROM.trim()) return false;
+  try {
+    const app = new URL(env.APP_BASE_URL);
+    const endpoint = new URL(env.EMAIL_API_URL || EMAIL_ENDPOINT);
+    return app.protocol === "https:" && !app.username && !app.password &&
+      endpoint.origin === "https://api.resend.com" && endpoint.pathname === "/emails" &&
+      !endpoint.username && !endpoint.password;
+  } catch { return false; }
+}
 async function issueAccountToken(env, userId, purpose) {
   const raw = randomToken(32);
   const now = Math.floor(Date.now() / 1000);
@@ -205,6 +216,7 @@ export async function handleIdentity(request, env, url) {
       if (!(await rateLimit(env, request, "register", 5, 900))) return fail("rate_limited", 429, "Too many registration attempts.");
       const body = await readJson(request);
       if (!validEmail(body.email) || !validPassword(body.password)) return fail("invalid_input", 400, "Enter a valid email and a password of at least 12 characters.");
+      if (!emailDeliveryConfigured(env)) return fail("email_delivery_unavailable", 503, "Public registration is temporarily unavailable until the Preview email provider, verified sender and HTTPS app URL are configured. No account was created.");
       const email = body.email.trim(), normalized = email.toLowerCase();
       const userId = crypto.randomUUID();
       const passwordHash = await hashPassword(body.password);
@@ -224,7 +236,7 @@ export async function handleIdentity(request, env, url) {
         return json({ ok: true, verification_required: true, message: "Check your email for a verification link." }, 201);
       } catch {
         await audit(env, request, "account.registered_email_pending", userId);
-        return fail("email_delivery_unavailable", 503, "The account was created but verification email delivery is not configured. Retry verification after configuring the Preview email provider.");
+        return fail("email_delivery_unavailable", 503, "The account was created, but the verification email could not be delivered. Use resend verification after the Preview email provider is restored.");
       }
     }
 
