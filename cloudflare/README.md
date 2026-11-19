@@ -5,18 +5,18 @@ This branch adds a Workers-native identity backend for an isolated staging envir
 ## Dedicated Preview resources
 
 - Worker: `ocodejs-central-api-d1-preview`
-- Preview API: https://ocodejs-central-api-d1-preview.ocodejs-df1.workers.dev
-- Docs: https://ocodejs-central-api-d1-preview.ocodejs-df1.workers.dev/docs
-- OpenAPI: https://ocodejs-central-api-d1-preview.ocodejs-df1.workers.dev/api/v1/openapi.json
-- Live health: https://ocodejs-central-api-d1-preview.ocodejs-df1.workers.dev/health/live
-- Readiness: https://ocodejs-central-api-d1-preview.ocodejs-df1.workers.dev/health/ready
+- Preview API: https://api-preview.ocodejs.dev
+- Docs: https://api-preview.ocodejs.dev/docs
+- OpenAPI: https://api-preview.ocodejs.dev/api/v1/openapi.json
+- Live health: https://api-preview.ocodejs.dev/health/live
+- Readiness: https://api-preview.ocodejs.dev/health/ready
 - Dedicated D1: `ocodejs-central-api-preview`
 - D1 database ID: `c6c0e235-e1a9-4ede-9a4b-27debc9c2a9b`
 - Native Worker entrypoint: `cloudflare/worker-native.mjs`
 - Identity implementation: `cloudflare/identity.mjs`
 - D1 migration: `cloudflare/migrations/0001_identity.sql`
 
-Cloudflare confirmed the new Worker upload and its `workers.dev` / Preview URL settings. The Worker is separate from the earlier `ocodejs-central-api-preview` gateway Worker. No custom domain, zone route or DNS record is attached.
+Cloudflare confirmed the dedicated Preview Worker upload and the custom hostname `api-preview.ocodejs.dev`. The Worker is separate from the earlier `ocodejs-central-api-preview` gateway Worker. The frontend base URL remains `https://ocodejs.dev`; the API hostname is Preview-only.
 
 ## Workers-native architecture
 
