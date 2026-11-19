@@ -79,3 +79,35 @@ test("readiness accepts complete Preview-only configuration", async () => {
   assert.equal(response.status, 200);
   assert.equal((await response.json()).ready, true);
 });
+
+
+test("public registration fails before creating an account when email delivery is not configured", async () => {
+  const secret = "preview-only-secret-that-is-at-least-32-characters";
+  const csrf = await createCsrfToken(secret);
+  const statements = [];
+  const DB = {
+    prepare(sql) {
+      statements.push(sql);
+      return {
+        bind() { return this; },
+        async first() { return { hits: 1 }; }
+      };
+    }
+  };
+  const request = new Request("https://preview.example/api/v1/auth/register", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: "ocodejs_csrf=" + encodeURIComponent(csrf),
+      "x-csrf-token": csrf,
+      "cf-connecting-ip": "192.0.2.10"
+    },
+    body: JSON.stringify({ email: "new-user@example.test", password: "a-very-long-test-password" })
+  });
+  const response = await handleIdentity(request, { DB, CSRF_SECRET: secret }, new URL(request.url));
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error, "email_delivery_unavailable");
+  assert.equal(statements.length, 1);
+  assert.match(statements[0], /INSERT INTO rate_limits/);
+  assert.equal(statements.some((sql) => /INSERT INTO users/.test(sql)), false);
+});
