@@ -19,7 +19,7 @@ This selection is a repository/documentation decision for the proposed consolida
 |---|---|---|
 | [OCodejs/mcp.auth.ocodejs](https://github.com/OCodejs/mcp.auth.ocodejs) | Auth.js v5, Google/GitHub OAuth, Credentials, Prisma/PostgreSQL, user profiles/social graph, BYOK Token Vault, Preview DB isolation; roadmap for OIDC Provider | Keep as a parallel product/account implementation during migration. Reuse reviewed profile/UI concepts; do not copy its database/session implementation into the gateway. Auth.js upstream login is not an OIDC Provider. |
 | [zskbot/mcp.server.auth](https://github.com/zskbot/mcp.server.auth) | Another Auth.js v5 + Prisma/PostgreSQL login foundation | Reference only until repository ownership, deployment and consumer dependencies are verified. Avoid a second canonical user store. |
-| [Velclaw/app-velclaw](https://github.com/Velclaw/app-velclaw) | `AUTH_SETUP.md`, `docs/auth-gateway-integration.md`, Auth.js port from Cloudxx, legacy JWT boundary | Important client integration source. Its gateway guide references `zskbot/Authentication` and documents CSRF, cookie, CORS and email routes. It also states the current Cloudflare Preview Worker is static-only and session validation is false. |
+| [Velclaw/app-velclaw](https://github.com/Velclaw/app-velclaw) | `src/auth.ts` still configures Auth.js v5 with GitHub, Google and Credentials; `docs/auth-gateway-integration.md` describes the future central-gateway client contract | Not migrated in source. The guide is a target architecture, not evidence of an active gateway integration. Its current JWT session and Prisma user store remain separate. |
 | [Velclaw/VelclawHost-Control-Center](https://github.com/Velclaw/VelclawHost-Control-Center) | GitHub OAuth callback, AES-GCM encrypted stateless session, admin/member claims, Netlify setup docs | Integrate identity and role claims through the central gateway; preserve Control Center-specific Netlify and hosting permissions. |
 | [zskbot/VelclawHost-Control-Center](https://github.com/zskbot/VelclawHost-Control-Center) | Same top-level app/docs structure as the Velclaw-owned repository | Treat as a parallel copy until commit/tree/history comparison proves relationship. Do not assume exact equivalence. |
 | [zskbot/ocodejs-api](https://github.com/zskbot/ocodejs-api) | `velclaw-identity/`: Hono/Val Town bridge, Neon Auth JWT/JWKS verification, OAuth callback, server-side SQLite sessions, OpenAPI and health endpoints | Separate legacy/bridge identity design. Keep as a migration/reference adapter until issuer, hostname, JWT claims and data ownership are verified. Do not make it a second user authority. |
@@ -74,7 +74,11 @@ These were included in the request but targeted authentication searches did not 
 5. **Role/authorization drift:** admin/member/owner allowlists are product-specific and must be mapped explicitly; no privilege expansion is implied.
 6. **Duplicate repositories:** same or similar repository names across owners do not prove identical code, history or release ownership.
 
-## F. Source handling rules
+## F. Central implementation reconciliation
+
+The central repository has three distinct paths: Node Fastify/PostgreSQL/Argon2id (`server/app.ts`), Cloudflare proxy Worker (`cloudflare/worker.mjs`), and Cloudflare Workers-native/D1/PBKDF2 (`cloudflare/worker-native.mjs` + `cloudflare/identity.mjs`). The Cloudflare documentation describes the D1 Preview deployment. The Node and D1 stores are separate and their password hashes are incompatible. Both use the cookie name `ocodejs_session`; do not share cookie scope or treat their sessions as interchangeable. See [IMPLEMENTATION-RECONCILIATION.md](./IMPLEMENTATION-RECONCILIATION.md).
+
+## G. Source handling rules
 
 - Preserve every source repository and its history.
 - Do not bulk-copy unrelated docs, vendored specifications, agent skills, generated output, secrets or binary archives.
