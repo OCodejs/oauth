@@ -6,6 +6,9 @@ Central identity and authentication gateway for the Velclaw ecosystem (Velclaw, 
 
 ## OCodeJS API documentation
 
+- [Unified OCodeJS × Velclaw Authentication architecture](docs/UNIFIED-AUTHENTICATION.md) — canonical identity, session, protocol and authorization boundaries.
+- [Authentication source repository map](docs/SOURCE-REPOSITORY-MAP.md) — repositories reviewed, relevant sources and quarantine decisions.
+- [Staged integration and migration plan](docs/INTEGRATION-MIGRATION-PLAN.md) — Preview-first rollout and data-safety gates.
 - [Central API architecture and rollout plan](docs/platform-api-architecture.md) — target platform boundaries, module status, security and phased cutover.
 - [Identity API OpenAPI 3.1 contract](docs/openapi-identity-v1.yaml) — verified contract for endpoints implemented in this repository only.
 - [Cloudflare Workers Preview](cloudflare/README.md) — edge gateway architecture, environment variables and Preview verification.
