@@ -56,6 +56,11 @@ These were included in the request but targeted authentication searches did not 
 - [Velclaw/docs.velclaw.ai](https://github.com/Velclaw/docs.velclaw.ai) — retained above for REST API auth reference.
 - [zskbot/VelCli-Build](https://github.com/zskbot/VelCli-Build) — not listed as an auth source; verify repository identity before any inclusion.
 
+## Additional listed consumer repositories
+
+- [zskbot/ask-ocodejs](https://github.com/zskbot/ask-ocodejs) — listed as a potential OCodeJS consumer; no auth-specific source contract was verified in this targeted pass. Treat as a future client, not an identity authority.
+- [zskbot/v0-chat](https://github.com/zskbot/v0-chat) — listed as a potential consumer; no auth-specific material was verified in the targeted search. Keep out of the central gateway until its login and API boundaries are inspected.
+
 ## E. Conflicts that must remain visible
 
 1. **Different session formats:** central gateway opaque token + PostgreSQL hash; Auth.js JWT/database sessions; Control Center encrypted stateless cookie; Val Town bridge opaque SQLite session; older uploaded Next.js archive stateless signed cookie. These are not interchangeable.
