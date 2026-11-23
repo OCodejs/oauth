@@ -11,9 +11,10 @@
 2. Record the exact commit SHA, deployment owner and environment for each candidate implementation.
 3. Inventory all identity tables, session formats, OAuth providers, callback URLs, cookies, origins and authorization checks.
 4. Identify real consumers and API calls from source code; a README mention alone is not proof of use.
-5. Confirm the canonical gateway's current CI, health endpoint and Preview deployment separately.
+5. Compare the Node Fastify/PostgreSQL service, Cloudflare proxy Worker and Workers-native D1 Worker; explicitly choose one authoritative backend per environment.
+6. Verify the owner, hostname and health/readiness of the current Preview deployment before selecting a client.
 
-**Exit:** reviewed source inventory and no unresolved ownership ambiguity for the selected Preview consumer.
+**Exit:** reviewed source inventory, one selected backend per environment, no unresolved ownership ambiguity for the selected Preview consumer, and no shared cookie/database scope between parallel backends.
 
 ## Phase 1 — Make the gateway contract authoritative
 
