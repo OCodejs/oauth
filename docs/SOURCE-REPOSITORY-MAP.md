@@ -25,6 +25,10 @@ This selection is a repository/documentation decision for the proposed consolida
 | [zskbot/ocodejs-api](https://github.com/zskbot/ocodejs-api) | `velclaw-identity/`: Hono/Val Town bridge, Neon Auth JWT/JWKS verification, OAuth callback, server-side SQLite sessions, OpenAPI and health endpoints | Separate legacy/bridge identity design. Keep as a migration/reference adapter until issuer, hostname, JWT claims and data ownership are verified. Do not make it a second user authority. |
 | [OCodejs/ocodejs-monorepo](https://github.com/OCodejs/ocodejs-monorepo) | Proposed `services/auth` boundary and architecture governance | Use as a future consumer/workspace map only. Its architecture is explicitly proposed, not evidence that services have been migrated. |
 
+## OCodeJS product consumer
+
+- [OCodejs/OCODEJS](https://github.com/OCodejs/OCODEJS) — core OCodeJS product repository and a potential first-party client; this pass did not verify a distinct central-auth contract inside that repository. Integrate through the gateway API rather than copying an independent user/session store.
+
 ## C. Documentation sources to incorporate selectively
 
 | Repository | Relevant material observed | Disposition |
