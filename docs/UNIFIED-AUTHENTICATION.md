@@ -8,7 +8,7 @@ This document defines the intended single Authentication platform. It does not c
 
 ## 1. Decision
 
-Use this repository's Fastify + PostgreSQL Auth Gateway as the shared identity authority for OCodeJS and Velclaw applications.
+Use this repository as the canonical **API contract and project boundary**, but do not select a single runtime/database backend until the two existing implementations are reconciled. The Node.js Fastify + PostgreSQL + Argon2id service is the preferred production candidate; the Cloudflare Workers-native + D1 + PBKDF2 implementation is an isolated Preview deployment. They are currently separate identity stores and are not interchangeable.
 
 - One canonical user identity and account lifecycle.
 - One browser-session contract for integrated first-party applications.
@@ -17,7 +17,7 @@ Use this repository's Fastify + PostgreSQL Auth Gateway as the shared identity a
 - Product repositories retain their UI and domain APIs; they do not create competing user stores.
 - Existing parallel implementations remain untouched until migration and rollback are verified.
 
-The gateway's current Phase 1–2 implementation is the baseline: email/password, email verification, password reset, opaque browser sessions, CSRF and API routes. Google/GitHub federation and OAuth 2.0 / OpenID Connect Provider functions are future work, not current capabilities.
+The shared route contract covers email/password, email verification, password reset, opaque browser sessions, CSRF and current-user lookup. The Node service uses Argon2id and PostgreSQL; the Workers-native Preview uses PBKDF2-SHA256 and D1. Its documentation explicitly says existing Argon2id hashes are not accepted and no account data was copied. Google/GitHub federation and OAuth 2.0 / OpenID Connect Provider functions are future work, not current gateway capabilities.
 
 ## 2. Canonical logical architecture
 
@@ -60,7 +60,7 @@ The gateway's current Phase 1–2 implementation is the baseline: email/password
  client registry + consent + refresh/revocation
 ```
 
-The Cloudflare Worker is an edge/transport layer only. It must forward a strict allowlist to the Fastify service and must not become a second identity database or an alternate source of user truth.
+The repository currently contains two Cloudflare Worker designs: (1) `cloudflare/worker.mjs`, a proxy that forwards the allowlisted identity API to the Node.js Fastify service; and (2) `cloudflare/worker-native.mjs` + `cloudflare/identity.mjs`, a Workers-native identity backend backed by a separate D1 database. The latter is documented as deployed to the isolated Preview hostname. These are competing runtime topologies, not one edge layer. Only one identity backend may be authoritative for a given environment; never dual-write or silently switch between PostgreSQL and D1.
 
 ## 3. Protocol boundaries — do not conflate these roles
 
@@ -92,7 +92,7 @@ Base path: `/api/v1`.
 | GET | `/api/v1/me` | Current authenticated identity | Implemented |
 | POST | `/api/v1/auth/logout` | Revoke current session | Implemented |
 
-The OpenAPI contract in [openapi-identity-v1.yaml](./openapi-identity-v1.yaml) is the API reference for routes actually implemented in this repository. Keep it synchronized with code and tests. Do not add planned endpoints to the published contract until implementation and tests exist.
+The OpenAPI contract in [openapi-identity-v1.yaml](./openapi-identity-v1.yaml) describes the Node service routes. The Workers-native Worker publishes a separate generated OpenAPI document from `worker-native.mjs`; compare them before claiming full parity. Keep both synchronized with their code and tests. Do not add planned endpoints to either published contract until implementation and tests exist.
 
 ### Browser request contract
 
